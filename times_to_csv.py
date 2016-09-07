@@ -91,7 +91,7 @@ for i in range(file_len): # go through each file
                 csvf.write("\tgPhoton.gAperture(band='FUV', "\
                         "skypos=[" + str(ra) + "," + str(dec) +"], "\
                         "stepsz=" + str(stepsize) + ", "\
-                        "csvfile=" + out_path + name + "_aper_" + apstring + "_as_timestep_" + stepstr + "_sec_FUV_time" + str(c+1) + ".csv', "\
+                        "csvfile='" + out_path + name + "_aper_" + apstring + "_as_timestep_" + stepstr + "_sec_FUV_time" + str(c+1) + ".csv', "\
                         "radius=" + str(aper) + ", annulus=[" + str(inner) + "," + str(outer) + "], trange=FUV_t" + str(c+1) +")\n")
        
         csvf.write('\n') # newline
@@ -101,7 +101,7 @@ for i in range(file_len): # go through each file
                 csvf.write("\tgPhoton.gAperture(band='NUV', "\
                         "skypos=[" + str(ra) + "," + str(dec) + "], "\
                         "stepsz=" + str(stepsize) + ", "\
-                        "csvfile=" + out_path + name + "_aper_" + apstring + "_as_timestep_" + stepstr + "_sec_NUV_time" + str(d+1) + ".csv', "\
+                        "csvfile='" + out_path + name + "_aper_" + apstring + "_as_timestep_" + stepstr + "_sec_NUV_time" + str(d+1) + ".csv', "\
                         "radius=" + str(aper) + ", annulus=[" + str(inner) + "," + str(outer) + "], trange=NUV_t" + str(d+1) + ")\n")
 
         csvf.write('\n')
