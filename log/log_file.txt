@@ -1,0 +1,6 @@
+In this file we'll keep track of what we do with gPhoton:
+the searches we conduct, when we create photometry files, 
+anything we're trying to reproduce from a paper, the date these things 
+happen, etc. 
+
+
