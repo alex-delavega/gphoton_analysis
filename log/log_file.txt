@@ -3,4 +3,6 @@ the searches we conduct, when we create photometry files,
 anything we're trying to reproduce from a paper, the date these things 
 happen, etc. 
 
+- 8 September 2016; Alex increased detsize keyword for gAperture for source w/ plenty of events with flag 32 (objid 2594920146823814374) from 1.1 deg to 1.2 deg and flags of 32 persisted. Object has mean detector radius of 30.7 arcmin, so these flags should have disappeared when increasing the detsize parameter (including the annulus, the detector radius would be 31.45 arcmin).
 
+- 8 September 2016; Alex began creating photometry files for a star in the same COSMOS field as that of objid 2550447100503550914. This star has nuv_mag = 12.78 and fuv_mag = 14.82, with ra = 150.2682, dec = 2.5046.  
