@@ -17,7 +17,7 @@ a specific visit, along with other parameters. This file incorporates all of the
 files to concisely spit out the type of file the user desires. 
 
 Alexander de la Vega (JHU)
-Latest version: 5 September 2016
+Latest version: 2 November 2016
 """
 
 from __future__ import division # python 2.x usually has issues dividing
@@ -26,7 +26,7 @@ import os # move through directories
 import sys # read in command line arguments
 #from operator import itemgetter # used to retrieve elements from arrays (look in plots section)
 
-import .useful_funcs as funcs # functions used throughout gPhoton analysis
+import useful_funcs as funcs # functions used throughout gPhoton analysis
 from astropy.io import ascii
 
 def is_float(x): # check whether values from CSVs are floats or not
@@ -44,10 +44,11 @@ if not os.path.exists(time_path): # check whether times directory exists
 files = os.listdir(time_path) # list of all files in times directory (i.e. each object of interest)
 num_file = len(files) # number of files in times directory
 
-csv_path = './csv/' # path that holds photometry CSVs
+csv_path = '../new_csv/' # path that holds photometry CSVs
 if not os.path.exists(csv_path): # check whether CSV directory exists
     print 'Please check input for CSV path'
     sys.exit(0)
+file_list = os.listdir(csv_path)
 
 files_csv = os.listdir(csv_path) # list of CSVs in CSV directory
 num_csv = len(files_csv) # number of CSVs
@@ -203,10 +204,11 @@ elif sys.argv[1] == 'plots':
         print 'Please check input for CSVpy path'
         sys.exit(0)
 
-    file_list_csvpy = os.listdir(csvpy_path)
+    file_list_csvpy = ['2412102149450243133_csv.py'] #os.listdir(csvpy_path)
 
     for f in file_list_csvpy:
         if f.endswith('csv.py'):
+            csvpy_f = f
             csvpy_file = open(csvpy_path + f, 'r')
             content = csvpy_file.readlines()
             csvpy_file.close()
@@ -263,7 +265,7 @@ elif sys.argv[1] == 'plots':
             
                         time_range = csv_f['t0'][len(csv_f) - 1] - csv_f['t0'][0]
                         time_buffer = 0.05 * time_range
-                        flags = find_unique_elements(csv_f['flags'])
+                        flags = funcs.find_unique_elements(csv_f['flags'])
             
                         good_criteria = (csv_f['exptime'] >= .75 * 5)
                         bad_criteria = (csv_f['exptime'] < .75 * 5)
@@ -325,7 +327,7 @@ elif sys.argv[1] == 'plots':
 
                         param = fname_n.replace('.csv', '').replace('time','').split('_')
             
-                        f_flags = find_unique_elements(csv_f_f['flags'])
+                        f_flags = funcs.find_unique_elements(csv_f_f['flags'])
                         f_colors = plt.cm.rainbow(np.linspace(0, 1, len(f_flags)))
             
                         for j in range(len(f_flags)):
@@ -333,7 +335,7 @@ elif sys.argv[1] == 'plots':
                                         yerr=[csv_f_f['mag_bgsub_err_1'][csv_f_f['flags'] == f_flags[j]], csv_f_f['mag_bgsub_err_1'][csv_f_f['flags'] == f_flags[j]]], linestyle='None',\
                                         marker='o', markersize=3, color=f_colors[j], label=str(f_flags[j]).replace('.0', ''))
             
-                        n_flags = find_unique_elements(csv_f_n['flags'])
+                        n_flags = funcs.find_unique_elements(csv_f_n['flags'])
                         n_colors = plt.cm.rainbow(np.linspace(0, 1, len(n_flags)))    
             
                         for j in range(len(n_flags)):
