@@ -29,6 +29,12 @@ import sys # read in command line arguments
 import useful_funcs as funcs # functions used throughout gPhoton analysis
 from astropy.io import ascii
 
+try:
+    os.environ['GPHOTON_HOME']
+except KeyError:
+    print "gPhoton environment variables not found. You need to either:\n 1. Source ~/path/to/gphoton/home/gphoton_var.sh in this session and try again, or\n 2. Add 'Source ~/path/to/gphoton/home/gphoton_var.sh' to your ~/.bash_profile"
+    sys.exit(0)
+
 def is_float(x): # check whether values from CSVs are floats or not
     try:
         float(x)
@@ -36,31 +42,27 @@ def is_float(x): # check whether values from CSVs are floats or not
     except ValueError:
         return False
 
-time_path = './times/' # directory with files that contain observation times
+time_path = os.environ['GPHOTON_TIMES'] # path to store time ranges for each target
 if not os.path.exists(time_path): # check whether times directory exists
-    print 'Please check input for times path'
-    sys.exit(0)
+    os.makedirs(time_path) # if not, create directory
 
 files = os.listdir(time_path) # list of all files in times directory (i.e. each object of interest)
 num_file = len(files) # number of files in times directory
 
-csv_path = '../new_csv/' # path that holds photometry CSVs
-if not os.path.exists(csv_path): # check whether CSV directory exists
-    print 'Please check input for CSV path'
-    sys.exit(0)
-file_list = os.listdir(csv_path)
+csv_path = os.environ['GPHOTON_OUTPUT']
+if not os.path.exists(csv_path): # check whether output directory exists
+    os.makedirs(csv_path) # if not, create directory
 
 files_csv = os.listdir(csv_path) # list of CSVs in CSV directory
 num_csv = len(files_csv) # number of CSVs
 
-out_path = './output/' # output path
+out_path = os.environ['GPHOTON_PLOTS'] # output path
 if not os.path.exists(out_path): # check whether output directory exists
     os.makedirs(out_path) # if not, create directory
 
-find_path = './find/' # path of find.py files - includes ra, dec, mag
+find_path = os.environ['GPHOTON_FIND'] # path to store gFind output for each target
 if not os.path.exists(find_path): # check whether gFind output directory exists
-    print 'Please check input for find path'
-    sys.exit(0)
+    os.makedirs(find_path) # if not, create directory
 
 if len(sys.argv) > 2: # if input is given as .txt file
     if sys.argv[2].endswith('.txt'):
@@ -70,11 +72,11 @@ if len(sys.argv) > 2: # if input is given as .txt file
         file_list = [n.replace('\n', '') for n in input_cont]
         inputf.close()
 
-aperture = 15.0 # aperture radius in arcsec
-time_step = 5.0 # time step in sec
+aperture = str(os.environ['GPHOTON_APERTURE']) # aperture radius in arcsec
+time_step = str(os.environ['GPHOTON_TIME_BIN']) # time step in sec
 
-aper = '15' # vector of aperture radii strings in arcsec; used to construct file names for output files
-ts = '5' # time step in sec - vector of strings for file name construction mentioned above
+aper = str(os.environ['GPHOTON_APERTURE']) # vector of aperture radii strings in arcsec; used to construct file names for output files
+ts = str(os.environ['GPHOTON_TIME_BIN']) # time step in sec - vector of strings for file name construction mentioned above
 band = ['FUV', 'NUV'] # vector of photometric bands - for aforementioned file name construction
 
 # if user passes 'stats' to the command line - produce stats output .txt file  
