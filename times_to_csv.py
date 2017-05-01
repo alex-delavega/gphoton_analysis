@@ -2,40 +2,48 @@
 This script reads recorded output from gFind (observation times) and formats input to create 
 another python file, which launches gAperture to produce CSVs for each observation time.
 
-Alexander de la Vega -- 5 / 9 / 2016
+Alexander de la Vega & Agustina Quesada
+last modified: 1 May 2017
 """
 
 import os # to change directories
-import csv # to read in files
+import sys # to read in files
 from astropy.io import ascii
+import numpy as np
 
-time_path = './times/' # path to store time ranges for each target
+try:
+    os.environ['GPHOTON_HOME']
+except KeyError:
+    print "gPhoton environment variables not found. You need to either:\n 1. Source ~/path/to/gphoton/home/gphoton_var.sh in this session and try again, or\n 2. Add 'Source ~/path/to/gphoton/home/gphoton_var.sh' to your ~/.bash_profile"
+    sys.exit(0)
+
+time_path = os.environ['GPHOTON_TIMES'] # path to store time ranges for each target
 if not os.path.exists(time_path): # check whether times directory exists
     os.makedirs(time_path) # if not, create directory
+
+find_path = os.environ['GPHOTON_FIND'] # path to store gFind output for each target
+if not os.path.exists(find_path): # check whether gFind output directory exists
+    os.makedirs(find_path) # if not, create directory
 
 files = os.listdir(time_path) # list of files containing observation time output from gFind
 file_len = len(files) # number of files
 
-find_path = './find/' # path to store gFind output for each target
-if not os.path.exists(find_path): # check whether gFind output directory exists
-    os.makedirs(find_path) # if not, create directory
-
-csvpy_path = './CSVpy/' 
+csvpy_path = os.environ['GPHOTON_CSVPY']
 if not os.path.exists(csvpy_path): # check whether directory for scripts to create photometry CSVs exists
     os.makedirs(csvpy_path) # if not, create directory
 
-out_path = './out/'
+out_path = os.environ['GPHOTON_OUTPUT']
 if not os.path.exists(out_path): # check whether output directory exists
     os.makedirs(out_path) # if not, create directory
 
-aper = 0.00416667 # aperture radius in deg. 
-stepsize = 5.0 # time step in sec
+aper = np.float(os.environ['GPHOTON_APERTURE']) / 3600 # aperture radius in deg. 
+stepsize = np.float(os.environ['GPHOTON_TIME_BIN']) # time step in sec
 
-apstring = '15' # aperture radius in arcsec
-stepstr = '5' # time step in sec
+apstring = str(os.environ['GPHOTON_APERTURE']) # aperture radius in arcsec string (to be used in filenames)
+stepstr = str(os.environ['GPHOTON_TIME_BIN']) # time step in sec
 
-inner = 0.00833333 # inner radius of annulus in deg.
-outer = 0.0125 # outer radius of annulus in deg. 
+inner = np.float(os.environ['GPHOTON_BCKG_INNER']) / 3600 # inner radius of annulus in deg.
+outer = np.float(os.environ['GPHOTON_BCKG_OUTER']) / 3600  # outer radius of annulus in deg. 
 
 for i in range(file_len): # go through each file
     if files[i].endswith('times.py'): # times.py signifies gFind output
@@ -59,8 +67,6 @@ for i in range(file_len): # go through each file
         
         ra = coord_info[0].split()[2] # the right ascension
         dec = coord_info[1].split()[2] # SAA for declination
-        #fuvmag = coord_info[2].split()[3] # '' photometric bands
-        #nuvmag = coord_info[2].split()[3]
         
         radecf.close() # close file
     
