@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 stat_plot_csv.py
 
@@ -16,18 +17,16 @@ and FUV & NUV mags. The CSV files comprise photometry for a source in a certain 
 a specific visit, along with other parameters. This file incorporates all of these types of
 files to concisely spit out the type of file the user desires. 
 
-Alexander de la Vega (JHU)
-Latest version: 2 November 2016
+Alexander de la Vega, Aggie Quesada (JHU)
+Latest version: 2 May 2017
 """
 
 from __future__ import division # python 2.x usually has issues dividing
 import numpy as np # for computation / array formatting
 import os # move through directories
 import sys # read in command line arguments
-#from operator import itemgetter # used to retrieve elements from arrays (look in plots section)
-
-import useful_funcs as funcs # functions used throughout gPhoton analysis
 from astropy.io import ascii
+
 
 try:
     os.environ['GPHOTON_HOME']
@@ -90,8 +89,7 @@ if sys.argv[1] == 'stats':
     good_flag = '0.0'
 
     stats_file = open(out_path + 'fft_stats.csv', 'w')
-    stats_file.write('objid,band,visit,duration,min_mag,max_mag,mean_mag_bgsub,max_mag_var,max_mag_var_sigma,flag0_max_mag_var,flag0_max_mag_var_sigma,max_counts_var_ratio,max_counts_var_err_ratio,' +\
-                 'mean_det_rad,err_det_rad,num_harmonics,num_other_peaks,flags,frac_bins_flags,tot_frac_bins_flags\n')
+    stats_file.write('objid,band,visit,duration,min_mag,max_mag,mean_mag_bgsub,max_mag_var,max_mag_var_sigma,flag0_max_mag_var,flag0_max_mag_var_sigma,max_counts_var_ratio,max_counts_var_err_ratio,' +                 'mean_det_rad,err_det_rad,num_harmonics,num_other_peaks,flags,frac_bins_flags,tot_frac_bins_flags\n')
 
     small_exptime_file = open(out_path + 'low_exposure_time_files.txt', 'w')
     miss_val_file = open(out_path + 'missing_value_files.txt', 'w')
@@ -141,8 +139,7 @@ if sys.argv[1] == 'stats':
             max_counts_var = np.max(abs(csv_f['flat_counts'][good_exp] - mean_counts))
             max_counts_index = np.where(abs(csv_f['flat_counts'][good_exp] - mean_counts) == max_counts_var)[0]
             max_counts_var_ratio = max_counts_var / mean_counts
-            max_counts_var_err_ratio = csv_f['cps_err'][good_exp][max_counts_index] *\
-            csv_f['exptime'][good_exp][max_counts_index] / mean_counts
+            max_counts_var_err_ratio = csv_f['cps_err'][good_exp][max_counts_index] *            csv_f['exptime'][good_exp][max_counts_index] / mean_counts
             
             data_fft = scpfft.fft(csv_f['mag_bgsub'])
             n = len(csv_f['mag_bgsub'])
@@ -191,171 +188,291 @@ if sys.argv[1] == 'stats':
     small_exptime_file.close()
     miss_val_file.close()
 
+
 # if the user passes 'plots' to the command line
 elif sys.argv[1] == 'plots':
     import matplotlib.pylab as plt # plotting
     from matplotlib.ticker import MultipleLocator, FormatStrFormatter # for tick marks
+    from matplotlib.backends.backend_pdf import PdfPages
+    import datetime
     from pylab import rcParams
-    rcParams['figure.figsize'] = 8, 6
+    import glob
 
-    min_mag_limit = 20
-    max_mag_limit = 5
-
-    csvpy_path = './CSVpy/'
-    if not os.path.exists(csvpy_path):
+    py_path = '/Users/Aggie/Documents/Research/CSVpy/CSVpy/' #'./CSVpy/' #path storing the csv.py files
+    light_path = '/Users/Aggie/Documents/Research/test/' #output path desired for the plots
+    csv_path = '/Users/Aggie/Documents/Research/Data/out/'  #path storing the csvs 
+    
+    if not os.path.exists(py_path):
         print 'Please check input for CSVpy path'
         sys.exit(0)
 
-    file_list_csvpy = ['2412102149450243133_csv.py'] #os.listdir(csvpy_path)
-
-    for f in file_list_csvpy:
-        if f.endswith('csv.py'):
-            csvpy_f = f
-            csvpy_file = open(csvpy_path + f, 'r')
-            content = csvpy_file.readlines()
-            csvpy_file.close()
-
-            for i in range(len(content)):
-                if len(content[i]) > 1:
-                    if content[i].split()[0] == '#FUV':
-                        f_line = i
-                    if content[i].split()[0] == '#NUV':
-                        n_line = i
-                        break
-
-            f_exp, n_exp = int(content[f_line].split()[3]), int(content[n_line].split()[3])
-
-            begin_times_f, end_times_f = np.empty(f_exp), np.empty(f_exp)
-            begin_times_n, end_times_n = np.empty(n_exp), np.empty(n_exp)
-
-            for i in range(f_line + 1, f_line + f_exp + 1):
-                begin_times_f[i - f_line - 1] = float(content[i].replace('[','').replace(']','').replace(',','').split()[1])
-                end_times_f[i - f_line - 1] = float(content[i].replace('[','').replace(']','').split()[2])
+    file_list_csvpy = os.listdir(py_path)
     
-            for j in range(n_line + 1, n_line + n_exp + 1):
-                begin_times_n[j - n_line - 1] = float(content[j].replace('[','').replace(']','').replace(',','').split()[1])
-                end_times_n[j - n_line - 1] = float(content[j].replace('[','').replace(']','').split()[2])
-
-            time_matches_f = np.asarray([i for i in range(1, f_exp + 1)])
+    def plotfile(csvpy_f, aper): #pick aper 15 or 25
     
-            if n_exp >= f_exp:
-                time_matches_n = np.zeros(n_exp)
-                count = 0
-                for k in range(n_exp):
-                    if begin_times_n[k] in begin_times_f:
-                        count += 1
-                        time_matches_n[k] = count
-            else:
-                print 'Need to investigate'
+        # From files need magnitudes, errors, exposure time. Open the files and store everything   
+        csvpy_path = py_path + csvpy_f
+        csvpy_file = open(csvpy_path, 'r')
+        content = csvpy_file.readlines()# Reads all the lines of the file and returns them into a list
+        csvpy_file.close()
 
-            for f in file_list:
-                if f.startswith(csvpy_f.split('_')[0]):
-                    csv_f = ascii.read(csv_path + f)
-                    f_min_mag = np.min(csv_f['mag_bgsub'] - csv_f['mag_bgsub_err_1'])
-                    f_max_mag = np.max(csv_f['mag_bgsub'] + csv_f['mag_bgsub_err_2'])
-                    if f_min_mag < min_mag_limit:
-                        min_mag_limit = f_min_mag
-                    if f_max_mag > max_mag_limit:
-                        max_mag_limit = f_max_mag
+        #Find where the line telling the exposure time is
+        for i in range(len(content)):
+            if len(content[i]) > 1: # If not an empty line
+                if content[i].split()[0] == '#FUV': # This only shows up once in the file
+                    f_line = i 
+                if content[i].split()[0] == '#NUV':
+                    n_line = i
+                    break  # Cut the loop. Fuv guaranteed to be before nuv (otherwise it would break)
 
-            if n_exp >= f_exp:
+        # Get the exposure times (number of visits)
+        f_exp, n_exp = int(content[f_line].split()[3]), int(content[n_line].split()[3]) 
+
+
+        #Store the begin and end times of the exposures into arrays
+        begin_times_f, end_times_f = np.empty(f_exp), np.empty(f_exp) #np.empty creates an empty array of that size
+        begin_times_n, end_times_n = np.empty(n_exp), np.empty(n_exp)
+
+        for i in range(f_line + 1, f_line + f_exp + 1): #+1 b/c range() is noninclusive
+            #begin_times is a array that we want to map from the lines in the file. do [i-(f_line +1))] in order to map correctly since 
+            #f_line isn't necessarily 0 to start with and the indicies in the array actually do start with 0 
+            begin_times_f[i - f_line - 1] = float(content[i].replace('[','').replace(']','').replace(',','').split()[1]) 
+            end_times_f[i - f_line - 1] = float(content[i].replace('[','').replace(']','').split()[2])
+
+        for j in range(n_line + 1, n_line + n_exp + 1):
+            begin_times_n[j - n_line - 1] = float(content[j].replace('[','').replace(']','').replace(',','').split()[1])
+            end_times_n[j - n_line - 1] = float(content[j].replace('[','').replace(']','').split()[2])
+
+        #Find where the visits of NUV and FUV match up
+        time_matches_f = np.asarray([i for i in range(1, f_exp + 1)]) # i for i in range creates a list. np.asarray turns a list into an array
+
+        if n_exp >= f_exp:
+            time_matches_n = np.zeros(n_exp)
+            count = 0
+            for k in range(n_exp):
+                if begin_times_n[k] in begin_times_f:
+                    count += 1
+                    time_matches_n[k] = count #marks as the kth element as the countith match
+                    
+
+        #If something in time_matches_n = 0, no NUV during that visit
+        #Time_matches_f doesn't get used elsewhere. Might have just been for diagnostics
+
+        #Find min and max mag limits to determine the axes in the light plots below 
+
+
+        #Now let's plot each visit
+        #the below is for cosmetics
+        params = {'text.usetex': False, 'mathtext.fontset': 'stixsans'} #turn off latex labels, change math font 
+        plt.rcParams.update(params)  #rc file does permanent configuration change on plt
+
+        #In order to determine y-axes in the light curves: Find min and max magnitude limits
+        file_list = glob.glob(csv_path + '*.csv')
+        min_mag_limit = 20
+        max_mag_limit = 5
+        minlims = []
+        maxlims = []
+        for f in file_list:
+            filename = os.path.split(f)[1]
+            if filename.startswith(csvpy_f.split('_')[0]):
+                csv_f = ascii.read(f)
+                f_min_mag = np.min(csv_f['mag_bgsub'] - csv_f['mag_bgsub_err_1'])
+                f_max_mag = np.max(csv_f['mag_bgsub'] + csv_f['mag_bgsub_err_2'])
+                if f_min_mag < min_mag_limit:
+                    minlims.append(f_min_mag)
+                if f_max_mag > max_mag_limit:
+                    maxlims.append(f_max_mag)
+        min_mag_limit = np.min(minlims)
+        max_mag_limit = np.max(maxlims)
+        
+        #so that the y axis isn't too small:
+        if max_mag_limit - min_mag_limit <= 1:
+            max_mag_limit += 0.5
+            min_mag_limit -= 0.5
+
+        # 9.0 comes from available real estate on page.
+        # 1.0 adjustment factor comes from experimentation.
+        numPlotsPerPage = int(9.0 / (max_mag_limit - min_mag_limit) * 1.0)
+        if numPlotsPerPage == 0: numPlotsPerPage = 1 # If there's a crazy-big range, int() can yield 0. Fix that here!
+
+
+        #Because some data only has NUV observations, we need to check if there are visits that match up. 
+        #If only NUV, plot only NUV. If both FUV and NUV, plot both
+        if n_exp >= f_exp:
+
+            #Create subplots so I can save all the visits for each source under one image. 
+            with PdfPages(light_path + '%s_%d.pdf' % (csvpy_f.split("_")[0], aper)) as pdf:
+                fig, subplots = plt.subplots(numPlotsPerPage, figsize=(10,12))
+                if numPlotsPerPage == 1: subplots = [subplots] # Before this, subplots is not an array. Fix to avoid indexing errors down the line
+                n = 0 # Number of plots on page right now
+
                 for i in range(n_exp):
+
                     if time_matches_n[i] == 0:
-                        fname = csvpy_f.split('_')[0] + '_aper_15_as_timestep_5_sec_NUV_time' + str(i + 1) + '.csv'
-                        #file_name = './new_csv/' + fname
+
+                        #Read the appropriate NUV file
+                        fname = csvpy_f.split('_')[0] + '_aper_' + str(aper) + '_as_timestep_5_sec_NUV_time' + str(i + 1) + '.csv'
                         csv_f = ascii.read(csv_path + fname)
-            
+
+
+                        #Find location on the detector
+                        xloc = np.mean(csv_f['detxs']) * 0.1 #units were in 0.1 arcmin
+                        yloc = np.mean(csv_f['detys']) * 0.1 
+
+                        #Find detector radius
+                        rad = np.mean(csv_f['detrad']) * 0.1 
+
+                        #Find timestamp
+                        value = datetime.datetime.fromtimestamp(csv_f["t0"][0] + 315964800) #offset between galex time step and unix
+                        timestamp = value.strftime('%Y-%m-%d %H:%M:%S') 
+
+
+                        #X-Axes: Find the correct time to put on the x-axis
                         time_range = csv_f['t0'][len(csv_f) - 1] - csv_f['t0'][0]
                         time_buffer = 0.05 * time_range
-                        flags = funcs.find_unique_elements(csv_f['flags'])
-            
+
+
+                        #Distinguish between good and bad criteria
                         good_criteria = (csv_f['exptime'] >= .75 * 5)
                         bad_criteria = (csv_f['exptime'] < .75 * 5)
-            
-                        if time_range <= 200: # if the length of the visit <= 200 sec
-                            minorLocator = MultipleLocator(5) # set minor tick marks every 5 sec
-                        else:
-                            minorLocator = MultipleLocator(20) # set minor tick marks every 20 sec
-                
-                        fig, ax = plt.subplots(figsize=(6,4))
-                        ax.xaxis.set_minor_locator(minorLocator) # plot with minor tick marks
 
+
+                        #Set minor tick marks based on length of visit and set plot size
+                        if time_range <= 200: # if length <= 200 sec
+                            minorLocator = MultipleLocator(5) # tick marks every 5 sec
+                        else:
+                            minorLocator = MultipleLocator(20) # tick marks every 20 sec
+
+                        subplots[n].xaxis.set_minor_locator(minorLocator) # plot with minor tick marks  
+                        subplots[n].tick_params(axis='both', which='major', labelsize=8)
+
+                        #Plot only NUV plot
+                        #2 y-errors bc one for above and one for below
+                        subplots[n].errorbar(csv_f['t0'][good_criteria] - csv_f['t0'][0] + time_buffer, csv_f['mag_bgsub'][good_criteria],                                        yerr=[csv_f['mag_bgsub_err_2'][good_criteria], csv_f['mag_bgsub_err_1'][good_criteria]],                                         linestyle='None',marker='o', markersize=3, color='r')
+
+                        #Bad criteria with markerfacecolor='None' makes the dot have no filling
+                        subplots[n].errorbar(csv_f['t0'][bad_criteria] - csv_f['t0'][0] + time_buffer, csv_f['mag_bgsub'][bad_criteria],                                        yerr=[csv_f['mag_bgsub_err_2'][bad_criteria], csv_f['mag_bgsub_err_1'][bad_criteria]],                                        linestyle='None', marker='o', markersize=3, markerfacecolor='None', color='r')
+
+
+                        #Axes
+                        subplots[n].set_ylim(max_mag_limit + 0.05, min_mag_limit - 0.05)
+                        subplots[n].set_xlim(0, time_buffer * 22)
+                        subplots[n].set_ylabel('AB mag') #AB magnitude = astronomical magnitude system--since magnitudes are relative this determines 0 as something set (eg: Vega star brightness)
+                        subplots[n].set_xlabel('Time - ' + str('%.f' % (csv_f['t0'][0] - time_buffer)) + ' (s)')
+
+                        #Title
                         param = fname.replace('.csv', '').replace('time','').split('_')
-            
-                        colors = plt.cm.rainbow(np.linspace(0, 1, len(flags)))
-            
-                        for j in range(len(flags)):
-                            plt.errorbar(csv_f['t0'][csv_f['flags'] == flags[j]] - csv_f['t0'][0] + time_buffer, csv_f['mag_bgsub'][csv_f['flags'] == flags[j]],\
-                                        yerr=[csv_f['mag_bgsub_err_2'][csv_f['flags'] == flags[j]], csv_f['mag_bgsub_err_1'][csv_f['flags'] == flags[j]]], linestyle='None',\
-                                        marker='o', markersize=3, color=colors[j], label=str(flags[j]).replace('.0', ''))
-            
-                        plt.ylim(max_mag_limit + 0.05, min_mag_limit - 0.05)
-                        plt.xlim(0, time_buffer * 22)
-                        plt.ylabel('AB mag')
-                        plt.xlabel('Time - ' + str('%.f' % (csv_f['t0'][0] - time_buffer)) + ' (s)')
-                        plt.legend(loc='best', numpoints=1, title='Flags')
-                        plt.title(param[0] + ' ' + param[7] + ' Visit ' + param[8] +\
-                            ' - aper ' + param[2] + ' as, timestep ' + param[5] + ' s')
-                        fig_name = out_path + param[0] + '_ts_' + ts + '_aper_' + aper + '_as_visit' + param[8] + '.pdf' # name of plot file
-                        plt.savefig(fig_name, format='pdf', bbox_inches='tight', dpi=150) # save plot
-                        plt.clf()
-                        plt.close('all')
+                        subplots[n].set_title(param[0] + ' ' + param[7] + ' Visit ' + param[8] + ' - aper ' + param[2] + ' as, timestep ' + param[5] + (' s\nDetloc x/y %.2f/%.2f arcmin, Detrad %.2f arcmin' % (xloc, yloc, rad)) + ', Time ' + timestamp)
+
                     else:
-                        fname_n = csvpy_f.split('_')[0] + '_aper_15_as_timestep_5_sec_NUV_time' +\
-                            str(i + 1) + '.csv'
-                        fname_f = csvpy_f.split('_')[0] + '_aper_15_as_timestep_5_sec_FUV_time' +\
-                            str(int(time_matches_n[i])) + '.csv'
+
+
+                        #Read the appropriate NUV and FUV files
+                        fname_n = csvpy_f.split('_')[0] + '_aper_' + str(aper) + '_as_timestep_5_sec_NUV_time' + str(i + 1) + '.csv'
+                        fname_f = csvpy_f.split('_')[0] + '_aper_' + str(aper) + '_as_timestep_5_sec_FUV_time' + str(int(time_matches_n[i])) + '.csv'
                         csv_f_n = ascii.read(csv_path + fname_n)
                         csv_f_f = ascii.read(csv_path + fname_f)
-            
-                        #f_index = int(time_matches_n[i]) - 1
-            
+
+
+                        #Find location on the detector
+                        xloc = np.mean(csv_f['detxs']) * 0.1 #units were in 0.1 arcmin
+                        yloc = np.mean(csv_f['detys']) * 0.1 
+
+                        #Find detector radius
+                        rad = np.mean(csv_f['detrad']) * 0.1 
+
+                        #Find timestamp
+                        value = datetime.datetime.fromtimestamp(csv_f["t0"][0] + 315964800) #offset between galex time step and unix
+                        timestamp = value.strftime('%Y-%m-%d %H:%M:%S') 
+
+
+                        #X-Axes: Find the correct time to put on the x-axis
                         if len(csv_f_f) >= len(csv_f_n):
                             time_range = csv_f_f['t0'][len(csv_f_f) - 1] - csv_f_f['t0'][0]
                         else:
                             time_range = csv_f_n['t0'][len(csv_f_n) - 1] - csv_f_n['t0'][0]
+
                         time_buffer = 0.05 * time_range
-            
-                        good_criteria = (csv_f['exptime'] >= .75 * 5)
-                        bad_criteria = (csv_f['exptime'] < .75 * 5)
-            
-                        if time_range <= 200: # if the length of the visit <= 200 sec
-                            minorLocator = MultipleLocator(5) # set minor tick marks every 5 sec
+
+
+                        #Distinguish between good and bad criteria
+                        good_criteria_f = (csv_f_f['exptime'] >= .75 * 5)
+                        bad_criteria_f = (csv_f_f['exptime'] < .75 * 5)
+
+                        good_criteria_n = (csv_f_n['exptime'] >= .75 * 5)
+                        bad_criteria_n = (csv_f_n['exptime'] < .75 * 5)
+
+
+                        #Set minor tick marks based on length of visit and set plot size
+                        if time_range <= 200: 
+                            minorLocator = MultipleLocator(5) 
                         else:
-                            minorLocator = MultipleLocator(20) # set minor tick marks every 20 sec
-                
-                        fig, ax = plt.subplots(figsize=(6,4))
-                        ax.xaxis.set_minor_locator(minorLocator) # plot with minor tick marks
+                            minorLocator = MultipleLocator(20) 
 
+
+                        subplots[n].xaxis.set_minor_locator(minorLocator) # plot with minor tick marks 
+                        subplots[n].tick_params(axis='both', which='major', labelsize=8)
+
+
+                        #fuv plot
+                        subplots[n].errorbar(csv_f_f['t0'][good_criteria_f] - csv_f_f['t0'][0] + time_buffer, csv_f_f['mag_bgsub'][good_criteria_f],                                        yerr=[csv_f_f['mag_bgsub_err_2'][good_criteria_f], csv_f_f['mag_bgsub_err_1'][good_criteria_f]],                                         linestyle='None', marker='o', markersize=3)
+
+                        subplots[n].errorbar(csv_f_f['t0'][bad_criteria_f] - csv_f_f['t0'][0] + time_buffer, csv_f_f['mag_bgsub'][bad_criteria_f],                                        yerr=[csv_f_f['mag_bgsub_err_2'][bad_criteria_f], csv_f_f['mag_bgsub_err_1'][bad_criteria_f]],                                         linestyle='None', marker='o', markersize=3, markerfacecolor='None')
+
+
+                        #nuv plot
+                        subplots[n].errorbar(csv_f_n['t0'][good_criteria_n] - csv_f_n['t0'][0] + time_buffer, csv_f_n['mag_bgsub'][good_criteria_n],                                        yerr=[csv_f_n['mag_bgsub_err_2'][good_criteria_n], csv_f_n['mag_bgsub_err_1'][good_criteria_n]],                                         linestyle='None', marker='o', markersize=3)
+
+                        subplots[n].errorbar(csv_f_n['t0'][bad_criteria_n] - csv_f_n['t0'][0] + time_buffer, csv_f_n['mag_bgsub'][bad_criteria_n],                                        yerr=[csv_f_n['mag_bgsub_err_2'][bad_criteria_n], csv_f_n['mag_bgsub_err_1'][bad_criteria_n]], linestyle='None',                                        marker='o', markersize=3, markerfacecolor='None')
+
+
+                        #Axes
+                        subplots[n].set_ylim(max_mag_limit + 0.05, min_mag_limit - 0.05)
+                        subplots[n].set_xlim(0, time_buffer * 22)
+                        subplots[n].set_ylabel('AB mag')
+                        subplots[n].set_xlabel('Time - ' + str('%.f' % (begin_times_n[i] - time_buffer)) + ' (s)')
+
+
+                        #Title
                         param = fname_n.replace('.csv', '').replace('time','').split('_')
-            
-                        f_flags = funcs.find_unique_elements(csv_f_f['flags'])
-                        f_colors = plt.cm.rainbow(np.linspace(0, 1, len(f_flags)))
-            
-                        for j in range(len(f_flags)):
-                            plt.errorbar(csv_f_f['t0'][csv_f_f['flags'] == f_flags[j]] - csv_f_f['t0'][0] + time_buffer, csv_f_f['mag_bgsub'][csv_f_f['flags'] == f_flags[j]],\
-                                        yerr=[csv_f_f['mag_bgsub_err_1'][csv_f_f['flags'] == f_flags[j]], csv_f_f['mag_bgsub_err_1'][csv_f_f['flags'] == f_flags[j]]], linestyle='None',\
-                                        marker='o', markersize=3, color=f_colors[j], label=str(f_flags[j]).replace('.0', ''))
-            
-                        n_flags = funcs.find_unique_elements(csv_f_n['flags'])
-                        n_colors = plt.cm.rainbow(np.linspace(0, 1, len(n_flags)))    
-            
-                        for j in range(len(n_flags)):
-                            plt.errorbar(csv_f_n['t0'][csv_f_n['flags'] == n_flags[j]] - csv_f_n['t0'][0] + time_buffer, csv_f_n['mag_bgsub'][csv_f_n['flags'] == n_flags[j]],\
-                                        yerr=[csv_f_n['mag_bgsub_err_1'][csv_f_n['flags'] == n_flags[j]], csv_f_n['mag_bgsub_err_1'][csv_f_n['flags'] == n_flags[j]]], linestyle='None',\
-                                        marker='^', markersize=3, color=n_colors[j], label=str(n_flags[j]).replace('.0', ''))
-            
-                        plt.ylim(max_mag_limit + 0.05, min_mag_limit - 0.05)
-                        plt.xlim(0, time_buffer * 22)
-                        plt.ylabel('AB mag')
-                        plt.xlabel('Time - ' + str('%.f' % (begin_times_n[i] - time_buffer)) + ' (s)')
-                        plt.legend(loc='best', numpoints=1, title='Flags')
-                        plt.title(param[0] + ' ' + param[7] + ' Visit ' + param[8] + '/' + fname_f.split('_')[7] + ' Visit ' + str(int(time_matches_n[i])) +\
-                            '- aper ' + param[2] + ' as, timestep ' + param[5] + ' s')
-                        fig_name = out_path + param[0] + '_ts_' + ts + '_aper_' + aper + '_as_visit' + param[8] + '.pdf' # name of plot file
-                        plt.savefig(fig_name, format='pdf', bbox_inches='tight', dpi=150) # save plot
-                        plt.clf()
-                        plt.close('all')
+                        subplots[n].set_title(param[0] + ' ' + param[7] + ' Visit ' + param[8] + '/' + fname_f.split('_')[7] + ' Visit ' + str(int(time_matches_n[i])) +                            ' - aper ' + param[2] + ' as, timestep ' + param[5] + (' s\nDetloc x/y %.2f/%.2f arcmin, Detrad %.2f arcmin' % (xloc, yloc, rad)) + ', Time ' + timestamp)
 
+                    n += 1
+                    if n >= numPlotsPerPage:
+                        plt.tight_layout()
+                        pdf.savefig(fig)
+                        plt.close()
+                        n = 0
+                        fig, subplots = plt.subplots(numPlotsPerPage, figsize=(10,12))
+                        if numPlotsPerPage == 1: subplots = [subplots] # see above comment at other plt.sbplots() call.
 
+                # Save any plots currently left on the page.
+                if n > 0:
+                    # Hide any unused subplots first
+                    for j in range(n, numPlotsPerPage):
+                        subplots[j].axis('off')
+
+                    # Save!
+                    plt.tight_layout()
+                    pdf.savefig(fig)
+                    plt.close()
+                    n = 0
+
+    for csvpy in file_list_csvpy:
+        try:
+            plotfile(csvpy, 15)
+        except KeyboardInterrupt: 
+            exit()
+        except:
+            # Handle error
+            print 'Error handling ' + csvpy + ', aperture 15: ' + str(sys.exc_info()[0]) + '(' + str(sys.exc_info()[1]) + ')'
+
+        try:
+            plotfile(csvpy, 25)
+        except KeyboardInterrupt:
+            exit()
+        except:
+            # Handle error
+            print 'Error handling ' + csvpy + ', aperture 25: ' + str(sys.exc_info()[0]) + '(' + str(sys.exc_info()[1]) + ')'
+                
 
